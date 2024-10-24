@@ -145,7 +145,7 @@ _四次挥手_
 
 **服务端**：服务端被动接收到客户端传来的FIN请求，状态更新为CLOSE_WAIT状态（被动关闭），并向客户端发送确认报文，随后服务端向客户端发送FIN请求，状态更新为LAST_ACK，等到接收到客户端传来的ACK确认报文后，状态更新为CLOSED，至此服务端的TPC连接完全断开，四次挥手完成；
 
-![image-20241024161027249](C:\Users\34955\AppData\Roaming\Typora\typora-user-images\image-20241024161027249.png)
+![image-20241024161027249](./png1.png)
 
 #### 详解TIME_WAIT状态
 
