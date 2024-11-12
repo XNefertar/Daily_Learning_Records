@@ -220,11 +220,87 @@ _常见错误值_
 > 3. 当监听到对应的文件描述符上由事件就绪时（事件类型由对应的文件描述符集合确定，这里是阻塞等待），fd_set被重新设置，对应位上的值被置为1，而监听的文件描述符若未就绪，则会被置为0；(0000 0100)
 > 4. 接收端读取select返回的信号，检索fd_set，执行相应操作；
 
+### select 就绪条件
 
+**读就绪**
 
+> - socket内核中, 接收缓冲区中的字节数, 大于等于低水位标记SO_RCVLOWAT. 此时可以无阻塞的读该文件描述符, 并且返回值大于0；
+> - socket TCP通信中, 对端关闭连接, 此时对该socket读, 则返回0；
+> - 监听的socket上有新的连接请求；
 
+**写就绪**
 
+> - socket 内核中, 发送缓冲区中的可用字节数(发送缓冲区的空闲位置大小), 大于等于低水位标记 SO_SNDLOWAT, 此时可以无阻塞的写, 并且返回值大于0；
+> - socket的写操作被关闭(close或者shutdown). 对一个写操作被关闭的socket进行写操作, 会触发SIGPIPE 信号；
+> - socket使用非阻塞connect连接成功或失败之后；
 
+**异常就绪**
 
+> - 连接中断或重置，常见异常为`ECONNRESET`；
+> - 对端正常关闭连接，此时如果对 socket 进行写操作，会触发`EPIPE`或`ECONNRESET`错误；
+> - 网络故障或不可达，通常发生在TCP或UDP中，可能表现为连接被重置；
+> - 非阻塞模式下，缓冲区已满或没有数据可读，socket 处于异常状态；
+> - 使用`shutdown()`后的读写操作，可能会导致后续操作失败，进入异常状态；
+> - 资源不足或系统错误，如内存不足或文件描述符耗尽，会导致进入异常状态；
+> - SSL / TLS 连接中的异常，在该协议下，任何连接中的异常都会使 socket 进入异常状态；
 
+### select 的特点
+
+- 可监控的文件描述符取决于`sizeof(fd_set)`的大小，以我自己的系统为例，`sizeof(fd_set)`大小为128 bytes，而每一位都可以标识一个文件描述符，所以可监控的文件描述符为`128 * 8 = 1024`；
+
+  > fd_set 的大小可以调整，具体方法可能涉及重新编译内核；
+
+- 将 fd 加入监控集的同时，还要再使用一个数据结构 array 保存到 select 监控集合中的 fd
+
+  - 一是用于再select 返回后，array作为源数据和fd_set进行FD_ISSET判断；
+  - 二是select返回后会把以前加入的但并无事件发生的fd清空，则每次开始select前都要重新从array取得 fd 逐一加入(FD_ZERO最先)，扫描array的同时取得fd最大值maxfd，用于select的第一个参数；
+
+### select 的缺点
+
+> - 每次调用select, 都需要手动设置fd集合, 从接口使用角度来说也非常不便；
+>
+> - 每次调用select，都需要把fd集合从用户态拷贝到内核态，这个开销在fd很多时会很大；
+>
+>   > 用户无法对内核数据进行直接操作，所有的操作都是操作系统通过对应的文件描述符对对应的资源进行操作；
+>
+> - 每次调用select都需要在内核遍历传递进来的所有fd，这个开销在fd很多时也很大；
+>
+> - select支持的文件描述符数量太小；
+
+### select 的使用实例（检测标准输入输出）
+
+```c++
+#include <stdio.h>
+#include <unistd.h>
+#include <sys/select.h>
+
+int main()
+{
+    fd_set read_fds;
+    FD_ZERO(&read_fds);
+    FD_SET(0, &read_fds);
+	for(;;){
+        printf("> ");
+        fflush(stdout);
+    	int ret = select(1, &read_fds, NULL, NULL, NULL);
+        if(ret < 0){
+            perror("SELECT");
+            continue;
+        }
+        if(FD_ISSET(0, &read_fds)){
+		   char buffer[1024]{};
+        	read(0, buffer, sizeof(buffer), 0);
+            std::cout << "input # " << buffer;
+        }
+        else{
+            std::cout << "ERROR, INVALID FD!" << std::endl;
+            continue;
+        }
+    	FD_ZERO(&read_fds);
+    	FD_SET(0, &read_fds);
+    }
+}
+```
+
+> 该程序只检测标准输入（对应的文件描述符为0），当一直不输入时，就会产生超时信息；
 
