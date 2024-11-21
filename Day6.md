@@ -306,3 +306,64 @@ int main()
 
 ## poll
 
+鉴于`select`带来的较大的拷贝开销和遍历成本，又提出了一种新的多路转接方式——**poll**；
+
+### 函数原型
+
+```c++
+#include <poll.h>
+int poll(struct pollfd *fds, nfds_t nfds, int timeout);
+
+// pollfd结构
+struct pollfd {
+	int fd; 	   /* file descriptor */
+	short events;  /* requested events */
+	short revents; /* returned events */
+};
+```
+
+#### 参数说明
+
+- fds：指向`pollfd`结构体的指针
+
+  ```c++
+  // pollfd结构
+  struct pollfd {
+  	int fd; 	   // 当前结构体所监视的文件描述符
+  	short events;  // 当前文件描述符锁关心的时间，具体类型有:
+      /*
+  	POLLIN：表示文件描述符可以进行读取操作（即有数据可读）。
+  	POLLOUT：表示文件描述符可以进行写入操作（即可以写数据）。
+  	POLLERR：表示文件描述符发生错误。
+  	POLLHUP：表示文件描述符被挂起，通常是连接关闭。
+  	POLLNVAL：表示文件描述符无效。
+      */
+  	short revents; // 返回的事件类型，poll 返回时会修改这个字段，告知哪些事件已经发生
+      			  // 返回值是 events 字段中感兴趣的事件，或者是一些错误事件
+  };
+  ```
+
+- nfds：表示当前所监视的文件描述符个数，即结构体指针指向的结构体个数
+
+- timout：
+
+  > 这是 `poll` 等待事件发生的最大时间，单位是毫秒。
+  >
+  > `timeout` 的值可以是以下几种：
+  >
+  > - **大于 0**：表示等待事件发生的最长时间（毫秒）。`poll` 会在超时之前返回，或者在事件发生时返回。
+  > - **0**：表示非阻塞模式，`poll` 不会阻塞，立即返回。如果没有事件发生，则 `revents` 字段会被设置为 0。
+  > - **-1**：表示无限期等待，`poll` 将会一直阻塞直到某个事件发生。
+
+#### 返回值
+
+- 返回值小于0, 表示出错；
+- 返回值等于0, 表示poll函数等待超时；
+- 返回值大于0, 表示poll由于监听的文件描述符就绪而返回
+
+### socket就绪条件
+
+与`select`相同；
+
+### poll 的优点
+
