@@ -377,6 +377,109 @@ struct pollfd {
 1. 尽管poll通过结构体指针实现了操作的统一，但是之后的查询就绪状态依然需要执行遍历操作，尤其是当监视的文件描述符数量较大时，会带来较大的性能消耗；
 2. 内部使用数组维护，动态扩展和删除性能较差，系统需要重新构建一个`poll_fd`结构体数组，由此会带来较大的拷贝资源消耗；
 
+### poll 的使用实例（检测标准输入输出——ReadEvent && ListenEvent）
+
+```c++
+#include <iostream>
+#include <poll.h>
+#include <iostream>
+#include <cstring>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <cstdlib>
+// TODO
+
+// 在具体的实现类中需要将套接字相关操作封装
+// 但是这里为了代码展示的完整性
+// 直接在类中提供套接字创建、绑定、监听、accpet connections等操作
+class PollServer
+{
+private:
+    int _listenFd;
+    struct pollfd *_readFdPtr;
+	
+    // 套接字相关操作
+    // create socket
+    socketstatic int Socket()
+    {
+        int fd = socket(AF_INET, SOCK_STREAM, 0);
+        if (fd < 0)
+        {
+            std::cerr << "socket error" << std::endl;
+            exit(1);
+        }
+        std::cout << "Socket fd: " << fd << std::endl;
+        // 设置端口复用
+        int opt = 1;
+        setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+
+        return fd;
+    }
+
+    
+    // bind
+    static void Bind(int fd, int port)
+    {
+        struct sockaddr_in addr;
+        memset(&addr, 0, sizeof(addr));
+        addr.sin_family = AF_INET;
+        addr.sin_port = htons(port);
+        addr.sin_addr.s_addr = INADDR_ANY;
+        if (bind(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0)
+        {
+            std::cerr << "bind error" << std::endl;
+            exit(1);
+        }
+        std::cout << "Bind fd: " << fd << std::endl;
+    }
+    
+    
+    // listen
+    static void Listen(int fd)
+    {
+        if (listen(fd, backlog) < 0)
+        {
+            std::cerr << "listen error" << std::endl;
+            exit(1);
+        }
+        std::cout << "Listen fd: " << fd << std::endl;
+    }
+    
+    
+    // client accept
+	static int Accept(int sock, std::string& ip, uint16_t& port)
+    {
+        struct  sockaddr_in addr;
+        socklen_t len = sizeof(addr);
+        int fd = accept(sock, (struct sockaddr*)&addr, &len);
+        if(fd < 0)
+        {
+            std::cerr << "accept error" << std::endl;
+            exit(1);
+        }
+        ip = inet_ntoa(addr.sin_addr);
+        port = ntohs(addr.sin_port);
+        std::cout << "Accept fd: " << fd << std::endl;
+        return fd;
+    }
+    
+    
+    
+    
+};
+```
+
+
+
+
+
+
+
+
+
 
 
 ## epoll
