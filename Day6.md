@@ -465,24 +465,52 @@ private:
         std::cout << "Accept fd: " << fd << std::endl;
         return fd;
     }
-    
-    
-    
-    
 };
 ```
 
-
-
-
-
-
-
-
-
-
-
 ## epoll
 
-——Linux下公认的最优的多路转接机制
+——Linux 2.6 版本下公认的性能最好的多路 I/O 就绪通知方法
 
+### epoll 相关系统调用
+
+#### epoll_create
+
+##### 函数原型
+
+```C++
+#include <sys/epoll.h>
+int epoll_create(int size);
+```
+
+创建一个`epoll`句柄
+
+##### 参数说明
+
+- size：
+
+  > - Linux 2.6.8 之前，`size` 参数用于指定内核为 epoll 实例分配的事件队列的大小。具体来说，它表示内核分配的事件数组的初始大小，即内核为该 epoll 实例保留的空间大小（以事件数量为单位）。如果事件的数量超过这个初始大小，内核会动态地扩展空间。
+  > - Linux 2.6.8 之后，size` 参数的作用被弃用了；而内核根据实际需求来分配资源；
+
+##### 返回值
+
+- **成功**：返回一个非负整数，表示创建的 epoll 实例的文件描述符。
+
+- **失败**：如果调用失败，返回 `-1`，并且设置 `errno` 以指示错误原因。
+
+#### epoll_ctl
+
+`epoll`的事件注册函数；
+
+##### 函数原型
+
+```C++
+#include <sys/epoll.h>
+int epoll_ctl(int epfd, int op, int fd, struct epoll_event *_Nullable event);
+```
+
+##### 参数说明
+
+> - 
+
+#### epoll_wait
