@@ -476,6 +476,8 @@ private:
 
 #### epoll_create
 
+创建一个`epoll`句柄；
+
 ##### 函数原型
 
 ```C++
@@ -483,14 +485,13 @@ private:
 int epoll_create(int size);
 ```
 
-创建一个`epoll`句柄
-
 ##### 参数说明
 
 - size：
 
-  > - Linux 2.6.8 之前，`size` 参数用于指定内核为 epoll 实例分配的事件队列的大小。具体来说，它表示内核分配的事件数组的初始大小，即内核为该 epoll 实例保留的空间大小（以事件数量为单位）。如果事件的数量超过这个初始大小，内核会动态地扩展空间。
-  > - Linux 2.6.8 之后，size` 参数的作用被弃用了；而内核根据实际需求来分配资源；
+> - Linux 2.6.8 之前，`size` 参数用于指定内核为 epoll 实例分配的事件队列的大小。具体来说，它表示内核分配的事件数组的初始大小，即内核为该 epoll 实例保留的空间大小（以事件数量为单位）。如果事件的数量超过这个初始大小，内核会动态地扩展空间。
+>
+> - Linux 2.6.8 之后，size` 参数的作用被弃用了；而内核根据实际需求来分配资源；
 
 ##### 返回值
 
@@ -511,27 +512,29 @@ int epoll_ctl(int epfd, int op, int fd, struct epoll_event *_Nullable event);
 
 ##### 参数说明
 
-> - epfd：epoll_create 的返回值，即 epoll 的句柄；
+epfd：epoll_create 的返回值，即 epoll 的句柄；
+
+> 什么是句柄？
 >
->   > 什么是句柄？
->   >
->   > >- 句柄是对资源的抽象引用，用来间接操作资源而不暴露资源的内部细节。
->   > >
->   > >- 它通常由操作系统或库分配，并通过特定的 API 来进行资源的管理和访问。
->   > >
->   > >- 句柄的常见应用包括文件、窗口、数据库连接和图形对象等。
->   > >
->   > >- 句柄和指针的区别在于，指针直接访问内存，而句柄是资源的抽象标识符，底层实现和资源管理由操作系统或库负责。
+> - 句柄是对资源的抽象引用，用来间接操作资源而不暴露资源的内部细节。
 >
-> - op：表示具体的操作，具体分为一下三个宏：
+> - 它通常由操作系统或库分配，并通过特定的 API 来进行资源的管理和访问。
 >
->   - EPOLL_CTL_ADD：注册新的fd到epfd中
->   - EPOLL_CTL_MOD：修改已经注册的fd的监听事件
->   - EPOLL_CTL_DEL：从epfd中删除一个fd；
+> - 句柄的常见应用包括文件、窗口、数据库连接和图形对象等。
 >
-> - fd：表示需要监听的文件描述符；
->
-> - event：表示内核需要监听的具体事件；
+> - 句柄和指针的区别在于，指针直接访问内存，而句柄是资源的抽象标识符，底层实现和资源管理由操作系统或库负责。
+
+op：表示具体的操作，具体分为一下三个宏：
+
+- EPOLL_CTL_ADD：注册新的fd到epfd中
+
+- EPOLL_CTL_MOD：修改已经注册的fd的监听事件
+
+- EPOLL_CTL_DEL：从epfd中删除一个fd；
+
+- fd：表示需要监听的文件描述符；
+
+- event：表示内核需要监听的具体事件；
 
 _struct epoll_event_ 参数说明
 
@@ -598,11 +601,243 @@ _边缘触发 && 水平触发_
 
     ​	水平触发适用于事件状态可能持续存在的场景，且应用程序需要持续收到通知直到事件被处理的情况。
 
-    
-
-    
-
-    
-
 #### epoll_wait
+
+收集在epoll监控的事件中已经发送的事件；
+
+##### 函数原型
+
+```c++
+#include <sys/epoll.h>
+int epoll_wait(int epfd, struct epoll_event *events, int maxevents, int timeout);
+```
+
+##### 参数说明
+
+- epfd:
+
+  `epoll`的文件描述符，表示一个`epoll`实例，内部维护了多个文件描述符遗迹这些描述符的相关事件；
+
+- events:
+
+  一个指向`epoll_event`结构体数组的指针，用于存放`epoll_wait`返回的就绪事件；在调用 `epoll_wait` 时，系统会将就绪的事件写入这个数组。应用程序需要遍历这个数组，并处理每个就绪事件；
+
+  > `struct epoll_event`的定义
+  >
+  > ```c++
+  > struct epoll_event {
+  >     uint32_t events;  // 事件类型（例如，EPOLLIN, EPOLLOUT等）
+  >     epoll_data_t data; // 用户数据（通常用于存储文件描述符的相关信息）
+  > };
+  > ```
+  - **`events`**：表示文件描述符的状态，`epoll_wait` 返回的事件类型，可能的值包括：
+    - `EPOLLIN`：表示文件描述符可读。
+    - `EPOLLOUT`：表示文件描述符可写。
+    - `EPOLLERR`：表示文件描述符发生错误。
+    - `EPOLLHUP`：表示文件描述符挂起（例如，连接被断开）。
+    - 其他事件，如 `EPOLLRDHUP`（TCP连接关闭通知）等。
+  - **`data`**：用户定义的数据，通常用于存储与文件描述符相关的信息。通过它可以区分不同的文件描述符或关联的业务逻辑。例如，存储一个指向自定义结构的指针，或者直接存储文件描述符本身。
+
+- maxevents
+
+  这是 `events` 数组的大小，表示最多可以返回多少个就绪事件。`epoll_wait` 会返回最多 `maxevents` 个事件，这个数量不超过数组的大小;
+
+- timeout
+
+  指定 `epoll_wait` 等待事件的最大时间，单位为毫秒。该参数控制 `epoll_wait` 的等待行为；
+
+  - **`timeout = -1`**：表示无限等待，直到有一个或多个事件就绪为止。`epoll_wait` 会阻塞直到有文件描述符发生变化（例如，变为可读、可写，或者发生错误等）。
+  - **`timeout = 0`**：表示非阻塞模式，`epoll_wait` 会立即返回，不会等待。它会检查所有注册的文件描述符的状态，如果没有就绪事件，会返回 `0`，表示当前没有文件描述符就绪。
+  - **`timeout > 0`**：表示最多等待 `timeout` 毫秒，如果在指定时间内有就绪事件，`epoll_wait` 会返回；如果没有就绪事件，则在超时后返回 `0`。
+
+  **常见应用场景**：
+
+  - `timeout = -1`：常用于需要等待直到事件发生的场景，如网络服务器等待连接或数据到来。
+  - `timeout = 0`：常用于非阻塞模式，通常在多线程或多任务的环境中，用来检查文件描述符的状态而不阻塞。
+  - `timeout > 0`：适用于需要定时轮询事件的场景，例如，应用程序需要定期检查文件描述符的状态，并在超时后执行一些其他任务。
+
+##### 返回值
+
+- **成功**：返回就绪的事件数量，表示有多少个文件描述符的事件发生了。这个数量可以小于或等于 `maxevents`，如果没有事件发生，则返回 `0`。如果有事件发生但返回的数量小于 `maxevents`，表示没有更多的就绪事件，程序可以继续处理其他任务。
+
+- **失败**：返回 `-1`，并设置 `errno` 来指示错误。常见的错误码包括：
+  - **`EINTR`**：系统调用被信号中断，需要重新调用 `epoll_wait`。
+  - **`EBADF`**：`epfd` 不是一个有效的文件描述符。
+  - **`EINVAL`**：无效的参数，可能是 `events` 为 NULL 或 `maxevents` 非法等。
+
+### epoll完整代码实例
+
+```c++
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <sys/epoll.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <fcntl.h>
+
+#define MAX_EVENTS 10
+
+// 设置套接字为非阻塞
+int set_nonblocking(int fd) {
+    int flags = fcntl(fd, F_GETFL, 0);
+    if (flags == -1) {
+        perror("fcntl(F_GETFL)");
+        return -1;
+    }
+    if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1) {
+        perror("fcntl(F_SETFL)");
+        return -1;
+    }
+    return 0;
+}
+
+// 创建一个TCP服务器并返回套接字
+int create_server_socket(int port) {
+    int server_fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (server_fd == -1) {
+        perror("socket");
+        return -1;
+    }
+
+    struct sockaddr_in addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = INADDR_ANY;
+    addr.sin_port = htons(port);
+
+    if (bind(server_fd, (struct sockaddr *)&addr, sizeof(addr)) == -1) {
+        perror("bind");
+        close(server_fd);
+        return -1;
+    }
+
+    if (listen(server_fd, 10) == -1) {
+        perror("listen");
+        close(server_fd);
+        return -1;
+    }
+
+    return server_fd;
+}
+
+int main() {
+    // 创建 epoll 文件描述符
+    int epfd = epoll_create1(0);
+    if (epfd == -1) {
+        perror("epoll_create1");
+        return -1;
+    }
+
+    // 创建并设置非阻塞的 TCP 服务器套接字
+    int server_fd = create_server_socket(8080);
+    if (server_fd == -1) {
+        close(epfd);
+        return -1;
+    }
+
+    if (set_nonblocking(server_fd) == -1) {
+        close(server_fd);
+        close(epfd);
+        return -1;
+    }
+
+    // 监听标准输入（STDIN_FILENO）
+    struct epoll_event event;
+    event.events = EPOLLIN;  // 关注可读事件
+    event.data.fd = STDIN_FILENO;
+    if (epoll_ctl(epfd, EPOLL_CTL_ADD, STDIN_FILENO, &event) == -1) {
+        perror("epoll_ctl: STDIN_FILENO");
+        close(server_fd);
+        close(epfd);
+        return -1;
+    }
+
+    // 监听 TCP 服务器套接字
+    event.events = EPOLLIN;  // 关注可读事件
+    event.data.fd = server_fd;
+    if (epoll_ctl(epfd, EPOLL_CTL_ADD, server_fd, &event) == -1) {
+        perror("epoll_ctl: server_fd");
+        close(server_fd);
+        close(epfd);
+        return -1;
+    }
+
+    // 创建事件数组来存储就绪的文件描述符
+    struct epoll_event events[MAX_EVENTS];
+
+    // 主循环，等待并处理事件
+    while (1) {
+        int n = epoll_wait(epfd, events, MAX_EVENTS, -1);  // 无限等待事件
+        if (n == -1) {
+            perror("epoll_wait");
+            break;
+        }
+
+        for (int i = 0; i < n; i++) {
+            if (events[i].data.fd == STDIN_FILENO) {
+                // 处理标准输入事件
+                char buf[1024];
+                ssize_t len = read(STDIN_FILENO, buf, sizeof(buf) - 1);
+                if (len > 0) {
+                    buf[len] = '\0';
+                    printf("Received input: %s\n", buf);
+                }
+            } 
+            else if (events[i].data.fd == server_fd) {
+                // 处理新连接事件
+                struct sockaddr_in client_addr;
+                socklen_t client_len = sizeof(client_addr);
+                int client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &client_len);
+                if (client_fd == -1) {
+                    perror("accept");
+                } else {
+                    // 设置新连接的非阻塞模式
+                    if (set_nonblocking(client_fd) == -1) {
+                        close(client_fd);
+                        continue;
+                    }
+
+                    // 将新的客户端连接添加到 epoll 中
+                    event.events = EPOLLIN | EPOLLET;  // 关注可读事件，并使用边缘触发模式
+                    event.data.fd = client_fd;
+                    if (epoll_ctl(epfd, EPOLL_CTL_ADD, client_fd, &event) == -1) {
+                        perror("epoll_ctl: client_fd");
+                        close(client_fd);
+                    } else {
+                        printf("New connection from %s\n", inet_ntoa(client_addr.sin_addr));
+                    }
+                }
+            }
+            else {
+                // 处理客户端请求
+                if (events[i].events & EPOLLIN) {
+                    int client_fd = events[i].data.fd;
+                    char buf[1024];
+                    ssize_t len = read(client_fd, buf, sizeof(buf) - 1);
+                    if (len > 0) {
+                        buf[len] = '\0';
+                        printf("Received data from client: %s\n", buf);
+                    } else if (len == 0) {
+                        // 客户端关闭连接
+                        printf("Client disconnected\n");
+                        close(client_fd);
+                    } else {
+                        // 错误处理
+                        perror("read");
+                        close(client_fd);
+                    }
+                }
+            }
+        }
+    }
+
+    // 清理资源
+    close(server_fd);
+    close(epfd);
+    return 0;
+}
+```
 
