@@ -678,6 +678,7 @@ int epoll_wait(int epfd, struct epoll_event *events, int maxevents, int timeout)
 #include <arpa/inet.h>
 #include <fcntl.h>
 
+// 定义最大处理事件数
 #define MAX_EVENTS 10
 
 // 设置套接字为非阻塞
@@ -687,6 +688,7 @@ int set_nonblocking(int fd) {
         perror("fcntl(F_GETFL)");
         return -1;
     }
+    // 调用 fcntl 函数进行设置
     if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1) {
         perror("fcntl(F_SETFL)");
         return -1;
@@ -696,35 +698,43 @@ int set_nonblocking(int fd) {
 
 // 创建一个TCP服务器并返回套接字
 int create_server_socket(int port) {
+	// socket function
     int server_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (server_fd == -1) {
         perror("socket");
         return -1;
     }
-
+	
     struct sockaddr_in addr;
     memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = INADDR_ANY;
     addr.sin_port = htons(port);
-
+	
+    // bind function
     if (bind(server_fd, (struct sockaddr *)&addr, sizeof(addr)) == -1) {
         perror("bind");
         close(server_fd);
         return -1;
     }
 
+    // listen function
     if (listen(server_fd, 10) == -1) {
         perror("listen");
         close(server_fd);
         return -1;
     }
-
+    
+	// return file_descriptor
     return server_fd;
 }
 
 int main() {
     // 创建 epoll 文件描述符
+    // epoll_create1 是 epoll_create 的增强版本
+    // 其可接受一个 flags 标志位，用于指定一些额外行为
+    // 这里参数传0值，表示使用默认行为模式
+    // 和 epoll_create 行为一致
     int epfd = epoll_create1(0);
     if (epfd == -1) {
         perror("epoll_create1");
@@ -748,6 +758,9 @@ int main() {
     struct epoll_event event;
     event.events = EPOLLIN;  // 关注可读事件
     event.data.fd = STDIN_FILENO;
+    
+    // epoll_ctl -> EPOLL_CTL_ADD
+    // 添加需要监听的文件描述符 + 需要关注的事件
     if (epoll_ctl(epfd, EPOLL_CTL_ADD, STDIN_FILENO, &event) == -1) {
         perror("epoll_ctl: STDIN_FILENO");
         close(server_fd);
@@ -764,6 +777,9 @@ int main() {
         close(epfd);
         return -1;
     }
+    
+    // 这里的 epoll 监听两个文件描述符：
+    // TCP + 标准输入
 
     // 创建事件数组来存储就绪的文件描述符
     struct epoll_event events[MAX_EVENTS];
