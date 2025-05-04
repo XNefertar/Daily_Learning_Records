@@ -806,7 +806,7 @@ int main() {
                 // 处理新连接事件
                 struct sockaddr_in client_addr;
                 socklen_t client_len = sizeof(client_addr);
-                int client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &client_len);
+                int client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &client_len));
                 if (client_fd == -1) {
                     perror("accept");
                 } else {
@@ -832,6 +832,11 @@ int main() {
                 if (events[i].events & EPOLLIN) {
                     int client_fd = events[i].data.fd;
                     char buf[1024];
+                    // TODO
+                    // 边缘触发方式能这么读取吗？？？
+                    // 虽然之前设置了非阻塞模式, 不会导致死锁错误
+                    // 但是这样会导致数据读取不全
+                    // 使用轮询读取方式
                     ssize_t len = read(client_fd, buf, sizeof(buf) - 1);
                     if (len > 0) {
                         buf[len] = '\0';
